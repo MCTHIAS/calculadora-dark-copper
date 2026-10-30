@@ -28,9 +28,9 @@ class CalculadoraCopperBlack(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Janela e contêiner com cantos arredondados
+        # Janela e contêiner com cantos arredondados e geometria ampla
         self.title("Calculadora Industrial - Copper & Black")
-        self.geometry("380x600")
+        self.geometry("430x700")
         self.resizable(False, False)
         self.configure(fg_color=COR_FUNDO)
 
@@ -42,9 +42,24 @@ class CalculadoraCopperBlack(ctk.CTk):
         self.segundo_numero = None             # Armazena o segundo número digitado
         self.aguardando_segundo_numero = False # Indica se o próximo dígito limpa o visor
 
+        # Lista de referência para desobstrução pós-renderização dos botões
+        self.lista_botoes = []
+
         # Inicialização da interface e eventos de teclado
         self._construir_interface()
         self._configurar_teclado()
+
+        # Garante que o padding interno do texto seja desobstruído após o carregamento do CustomTkinter
+        self.after(50, self._desobstruir_botoes)
+
+    def _desobstruir_botoes(self):
+        """Impede que o método interno _create_grid() do CTkButton esprema os textos dos botões."""
+        for btn in self.lista_botoes:
+            try:
+                if hasattr(btn, "_text_label") and btn._text_label is not None:
+                    btn._text_label.grid_configure(padx=0, pady=0)
+            except Exception:
+                pass
 
     def _construir_interface(self):
         """Cria e posiciona o contêiner, visor e os botões estritamente circulares."""
@@ -56,41 +71,42 @@ class CalculadoraCopperBlack(ctk.CTk):
             border_width=1,
             border_color="#262626"
         )
-        self.container.pack(padx=16, pady=20, fill="both", expand=True)
+        self.container.pack(padx=18, pady=20, fill="both", expand=True)
 
-        # 1. VISOR DE DADOS (Caixa escura embutida com cantos arredondados)
+        # 1. VISOR DE DADOS (Caixa escura embutida via grid sem pack_propagate)
         self.frame_visor = ctk.CTkFrame(
             self.container,
             fg_color=COR_VISOR,
-            corner_radius=18,
+            corner_radius=20,
             border_width=1,
-            border_color="#1E1E1E",
-            height=110
+            border_color="#1E1E1E"
         )
-        self.frame_visor.pack(padx=16, pady=(16, 12), fill="x")
-        self.frame_visor.pack_propagate(False)
+        self.frame_visor.pack(padx=18, pady=(18, 14), fill="x")
+        self.frame_visor.grid_columnconfigure(0, weight=1)
 
         # Rótulo da expressão anterior (ex: "15 + 4")
         self.label_expressao = ctk.CTkLabel(
             self.frame_visor,
             text="",
-            font=("JetBrains Mono", 13),
-            text_color="#7A5540",
-            anchor="e"
+            font=("Consolas", 14),
+            text_color="#8F644B",
+            anchor="e",
+            height=24
         )
-        self.label_expressao.pack(padx=14, pady=(10, 0), fill="x")
+        self.label_expressao.grid(row=0, column=0, padx=20, pady=(14, 2), sticky="ew")
 
-        # Rótulo do valor principal em cobre luminoso
+        # Rótulo do valor principal em cobre luminoso com visibilidade garantida
         self.label_visor = ctk.CTkLabel(
             self.frame_visor,
             text="0",
-            font=("JetBrains Mono", 34, "bold"),
+            font=("Consolas", 40, "bold"),
             text_color=COR_COBRE_RESULTADO,
-            anchor="e"
+            anchor="e",
+            height=50
         )
-        self.label_visor.pack(padx=14, pady=(4, 10), fill="x")
+        self.label_visor.grid(row=1, column=0, padx=20, pady=(2, 16), sticky="ew")
 
-        # 2. TECLADO DE BOTÕES CIRCULARES
+        # 2. TECLADO DE BOTÕES RIGOROSAMENTE CIRCULARES
         # Matriz de botões no layout clássico
         botoes = [
             [("AC", "acao"), ("±", "acao"), ("%", "acao"), ("÷", "operador")],
@@ -101,42 +117,56 @@ class CalculadoraCopperBlack(ctk.CTk):
         ]
 
         frame_grade = ctk.CTkFrame(self.container, fg_color="transparent")
-        frame_grade.pack(padx=16, pady=8, fill="both", expand=True)
+        frame_grade.pack(padx=16, pady=(4, 16), fill="both", expand=True)
 
         for col in range(4):
-            frame_grade.grid_columnconfigure(col, weight=1)
+            frame_grade.grid_columnconfigure(col, weight=1, uniform="col")
 
-        tamanho_botao = 58
-        raio_circular = tamanho_botao // 2  # Raio igual à metade garante formato estritamente redondo
+        for linha in range(5):
+            frame_grade.grid_rowconfigure(linha, weight=1, uniform="row")
+
+        tamanho_botao = 72
+        raio_circular = 32  # Proporção circular perfeita com folga interna
 
         for linha_idx, linha in enumerate(botoes):
             for col_idx, (rotulo, tipo) in enumerate(linha):
-                # Definição de cores conforme o tipo do botão
+                # Definição de cores e tamanho de fonte conforme o tipo do botão
                 if tipo in ("operador", "igual"):
                     cor_texto = COR_COBRE_OPERADOR
                     cor_borda = COR_BORDA_CINZA
+                    tamanho_fonte = 22
                 elif tipo == "acao":
                     cor_texto = "#A07050"
                     cor_borda = COR_BORDA_CINZA
+                    tamanho_fonte = 18
                 else:  # Dígito numérico
                     cor_texto = COR_COBRE_DIGITO
                     cor_borda = COR_BORDA_CINZA
+                    tamanho_fonte = 21
 
                 btn = ctk.CTkButton(
                     frame_grade,
                     text=rotulo,
                     width=tamanho_botao,
                     height=tamanho_botao,
-                    corner_radius=raio_circular,      # Formato estritamente redondo (58x58px, raio=29)
+                    corner_radius=raio_circular,
                     fg_color=COR_BOTAO_FUNDO,
                     hover_color=COR_BOTAO_HOVER,
                     border_color=cor_borda,
-                    border_width=2,                   # Borda cinza suave de 2px
+                    border_width=2,
                     text_color=cor_texto,
-                    font=("JetBrains Mono", 18, "bold"),
+                    font=("Consolas", tamanho_fonte, "bold"),
                     command=lambda r=rotulo: self._ao_pressionar_botao(r)
                 )
+
+                # Posicionamento centralizado sem sticky para evitar formato oval
                 btn.grid(row=linha_idx, column=col_idx, padx=6, pady=6)
+
+                # Ajuste imediato do padding do _text_label logo após o .grid()
+                if hasattr(btn, "_text_label") and btn._text_label is not None:
+                    btn._text_label.grid_configure(padx=0, pady=0, sticky="nsew")
+
+                self.lista_botoes.append(btn)
 
     def _ao_pressionar_botao(self, rotulo):
         """Encaminha o clique para o método específico."""
@@ -276,15 +306,49 @@ class CalculadoraCopperBlack(ctk.CTk):
             self.label_visor.configure(text="-" + texto)
 
     def _aplicar_porcentagem(self):
+        """
+        Aplica o cálculo de porcentagem contextual sem eval(), utilizando if/elif/else:
+        1. Isolado: Converte o número imediatamente em fração decimal (ex.: 50% -> 0.5).
+        2. Soma (+) e Subtração (-): Acréscimo ou desconto percentual sobre o primeiro operando.
+           Ex.: 200 + 15% -> converte os 15% em 30 (visor/expressão) e com '=' resulta em 230.
+           Ex.: 200 - 15% -> converte os 15% em 30 (visor/expressão) e com '=' resulta em 170.
+        3. Multiplicação (×, *) e Divisão (÷, /): Fator percentual direto.
+           Ex.: 200 × 15% -> converte os 15% em 0.15 (visor/expressão) e com '=' resulta em 30.
+           Ex.: 200 ÷ 50% -> converte os 50% em 0.5 (visor/expressão) e com '=' resulta em 400.
+        """
+        texto_atual = self.label_visor.cget("text")
+        if texto_atual == "Indefinido":
+            return
+
         try:
-            valor = float(self.label_visor.cget("text"))
-            if self.primeiro_numero is not None:
-                resultado = (self.primeiro_numero * valor) / 100.0
-            else:
-                resultado = valor / 100.0
-            self.label_visor.configure(text=self._formatar_numero(resultado))
+            valor = float(texto_atual)
         except ValueError:
-            pass
+            return
+
+        # Caso 1: Valor percentual isolado (quando não há operador pendente)
+        if self.operador_escolhido is None or self.primeiro_numero is None:
+            resultado = valor / 100.0
+            self.label_visor.configure(text=self._formatar_numero(resultado))
+            self.label_expressao.configure(text=f"{self._formatar_numero(valor)}%")
+            self.aguardando_segundo_numero = True
+
+        # Caso 2: Acréscimo (+) ou Desconto (-) percentual sobre o primeiro operando
+        elif self.operador_escolhido in ("+", "-"):
+            valor_percentual = (self.primeiro_numero * valor) / 100.0
+            self.label_visor.configure(text=self._formatar_numero(valor_percentual))
+            self.label_expressao.configure(
+                text=f"{self._formatar_numero(self.primeiro_numero)} {self.operador_escolhido} {self._formatar_numero(valor_percentual)}"
+            )
+            self.aguardando_segundo_numero = False
+
+        # Caso 3: Multiplicação (×, *) ou Divisão (÷, /) com fator percentual direto
+        elif self.operador_escolhido in ("×", "*", "÷", "/"):
+            fator_percentual = valor / 100.0
+            self.label_visor.configure(text=self._formatar_numero(fator_percentual))
+            self.label_expressao.configure(
+                text=f"{self._formatar_numero(self.primeiro_numero)} {self.operador_escolhido} {self._formatar_numero(fator_percentual)}"
+            )
+            self.aguardando_segundo_numero = False
 
     def _apagar_ultimo(self):
         texto = self.label_visor.cget("text")

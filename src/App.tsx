@@ -130,21 +130,49 @@ export default function App() {
     });
   }, [tocarSomClique]);
 
+  // Cálculo Contextual de Porcentagem sem eval() utilizando if / else if / else
   const aplicarPorcentagem = useCallback(() => {
     tocarSomClique(320);
-    setDisplay((prev) => {
-      const valor = parseFloat(prev);
-      if (isNaN(valor)) return prev;
+    if (display === 'Indefinido') return;
 
-      let resultado: number;
-      if (primeiroNumero !== null) {
-        resultado = (primeiroNumero * valor) / 100;
-      } else {
-        resultado = valor / 100;
-      }
-      return formatarNumero(resultado);
-    });
-  }, [primeiroNumero, tocarSomClique]);
+    const valor = parseFloat(display);
+    if (isNaN(valor)) return;
+
+    // Caso 1: Valor percentual isolado (quando não há operador pendente)
+    if (operadorEscolhido === null || primeiroNumero === null) {
+      const resultado = valor / 100;
+      const formatado = formatarNumero(resultado);
+      setDisplay(formatado);
+      setExpressaoAnterior(`${formatarNumero(valor)}%`);
+      setAguardandoSegundoNumero(true);
+      return;
+    }
+
+    // Caso 2: Acréscimo (+) ou Desconto (-) percentual sobre o primeiro operando
+    if (operadorEscolhido === '+' || operadorEscolhido === '-' || operadorEscolhido === '−') {
+      const valorPercentual = (primeiroNumero * valor) / 100;
+      const formatado = formatarNumero(valorPercentual);
+      setDisplay(formatado);
+      setExpressaoAnterior(`${formatarNumero(primeiroNumero)} ${operadorEscolhido} ${formatado}`);
+      setAguardandoSegundoNumero(false);
+      return;
+    }
+
+    // Caso 3: Multiplicação (×, *) ou Divisão (÷, /) com fator percentual direto
+    if (
+      operadorEscolhido === '×' ||
+      operadorEscolhido === '*' ||
+      operadorEscolhido === '÷' ||
+      operadorEscolhido === '/'
+    ) {
+      const fatorPercentual = valor / 100;
+      const formatado = formatarNumero(fatorPercentual);
+      setDisplay(formatado);
+      setExpressaoAnterior(`${formatarNumero(primeiroNumero)} ${operadorEscolhido} ${formatado}`);
+      setAguardandoSegundoNumero(false);
+      return;
+    }
+  }, [display, operadorEscolhido, primeiroNumero, tocarSomClique]);
 
   const apagarUltimo = useCallback(() => {
     tocarSomClique(260);
@@ -396,7 +424,7 @@ export default function App() {
             {somHabilitado ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
 
-          {/* Abas de Navegação */}
+        {/* Abas de Navegação */}
           <div className="flex items-center bg-[#0D0D0D] border border-[#262626] rounded-xl p-1 text-xs">
             <button
               onClick={() => setAbaAtiva('calculadora')}
@@ -856,6 +884,20 @@ export default function App() {
                   <div className="pl-8 text-rose-400">exibir_erro("Indefinido")  # Proteção contra Divisão por Zero!</div>
                   <div className="pl-4 text-[#e5e5e5]">else:</div>
                   <div className="pl-8 text-[#e5e5e5]">resultado = primeiro_numero / segundo_numero</div>
+                </div>
+
+                <p className="text-[#b0b0b0]">
+                  <strong className="text-[#C87D55]">Evolução do Cálculo de Porcentagem (%):</strong> A lógica contextual de porcentagem também opera exclusivamente com condicionais e sem <code>eval()</code>:
+                </p>
+
+                <div className="bg-[#050505] p-3.5 rounded-xl border border-[#202020] font-mono text-xs text-[#C87D55] space-y-1">
+                  <div className="text-[#777777]"># Lógica contextual de porcentagem com if/elif/else:</div>
+                  <div>if operador_escolhido is None:</div>
+                  <div className="pl-4 text-[#e5e5e5]">resultado = valor / 100.0  # Isolado: 50% -> 0.5</div>
+                  <div>elif operador_escolhido in ("+", "-"):</div>
+                  <div className="pl-4 text-[#e5e5e5]">valor_percentual = (primeiro_numero * valor) / 100.0  # 200 + 15% -> 30 (total 230)</div>
+                  <div>elif operador_escolhido in ("×", "÷"):</div>
+                  <div className="pl-4 text-[#e5e5e5]">fator_percentual = valor / 100.0  # 200 × 15% -> 0.15 (total 30)</div>
                 </div>
 
                 <p className="text-[#b0b0b0]">
